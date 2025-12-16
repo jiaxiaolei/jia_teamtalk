@@ -1,4 +1,6 @@
 
+import logging
+
 from app.adapters.base import BaseLLMClient
 from app.strategies.factory import RoleFactory
 
@@ -16,6 +18,7 @@ class ChatService:
             {"role": "system", "content": strategy.system_prompt},
             {"role": "user", "content": strategy.build_user_prompt(content)}
         ]
+        logging.info("[ChatService] messages: %s", messages)
 
         # 3. 调用 LLM 并返回生成器
         return self.llm.stream_chat(messages)

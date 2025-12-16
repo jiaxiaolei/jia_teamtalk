@@ -1,7 +1,10 @@
+import logging
+
 from openai import AsyncOpenAI
-from app.core.logger import logger 
 from app.core.config import settings
 from app.adapters.base import BaseLLMClient
+
+#logger = logging.getLogger(__name__)
 
 class QwenClient(BaseLLMClient):
     def __init__(self):
@@ -23,8 +26,11 @@ class QwenClient(BaseLLMClient):
                 if chunk.choices and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
 
-            logger.info(f"Calling Qwen Model with {len(messages)} messages") # 记录调用信息
+            logging.info(f"Calling Qwen Model with {len(messages)} messages") # 记录调用信息
         except Exception as e:
-            logger.error(f"LLM API Call Failed: {str(e)}", exc_info=True) # 记录错误堆栈
+            #logging.error(f"---loggingLLM API Call Failed: {str(e)}", exc_info=True) # 记录错误堆栈
+            logging.exception(f"---loggingLLM API Call Failed: {str(e)}", exc_info=True) # 记录错误堆栈
+            #logger.error(f"---logger LLM API Call Failed: {str(e)}", exc_info=True)
+            logger.exception(f"---logger LLM API Call Failed: {str(e)}", exc_info=True)
             yield f"[System Error]: LLM调用失败 - {str(e)}"
 
