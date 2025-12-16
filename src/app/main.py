@@ -20,6 +20,7 @@ if src_dir not in sys.path:
 # -----------------------
 
 # 路径注入后，才能正常 import app.xxx
+from app.core.logger import logger
 from app.schemas.request import TranslationRequest
 from app.adapters.qwen import QwenClient
 from app.services.chat_service import ChatService
@@ -31,8 +32,9 @@ app = FastAPI(title="Enterprise AI Translator")
 static_dir = os.path.join(os.path.dirname(src_dir), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    logger.info(f"Static files mounted at: {static_dir}")
 else:
-    print(f"Warning: Static directory not found at {static_dir}")
+    logger.warning(f"Static directory not found at {static_dir}") 
 
 def get_chat_service():
     client = QwenClient()
@@ -51,5 +53,5 @@ if __name__ == "__main__":
     # 注意：直接传 app 对象，而不是字符串 "app.main:app"，避免路径解析麻烦
     # reload=False 是因为直接运行脚本通常用于生产或调试，不需要热重载
     # 如果一定需要 reload，必须确保环境变量 PYTHONPATH 包含 src
-    print(f"🚀 Server is running on http://0.0.0.0:8081")
-    uvicorn.run(app, host="0.0.0.0", port=8081)
+    logger.info("🚀 Server is starting on http://0.0.0.0:8001")
+    uvicorn.run(app, host="0.0.0.0", port=8001)
