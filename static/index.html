@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>职能沟通翻译助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .prose h3 { font-size: 1.1em; font-weight: bold; margin-top: 1em; color: #4B5563; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; }
+        .prose strong { color: #1F2937; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-8 text-gray-800">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-indigo-600 mb-2">🤖 职能沟通翻译助手</h1>
+            <p class="text-gray-500">消除 PM 与 Dev 之间的理解鸿沟</p>
+        </header>
+
+        <!-- Main Interface -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- Left: Input -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">翻译模式</label>
+                    <select id="direction" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" onchange="updatePlaceholder()">
+                        <option value="p2d">产品经理 ➔ 开发工程师</option>
+                        <option value="d2p">开发工程师 ➔ 产品经理</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">输入内容</label>
+                    <textarea id="inputContent" rows="10"
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                        placeholder="请输入需求描述..."></textarea>
+                </div>
+
+                <button onclick="startTranslate()"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex justify-center items-center">
+                    <span id="btnText">开始翻译</span>
+                    <div id="loading" class="hidden ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </button>
+            </div>
+
+            <!-- Right: Output -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col">
+                <label class="block text-sm font-medium text-gray-700 mb-2">翻译结果</label>
+                <div id="outputContent" class="flex-grow bg-gray-50 rounded-lg p-4 border border-gray-200 overflow-y-auto prose text-sm">
+                    <p class="text-gray-400 italic">等待输入...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const examples = {
+            'p2d': '我们需要一个智能推荐功能，提升用户停留时长。',
+            'd2p': '我们优化了数据库查询，QPS提升了30%。'
+        };
+
+        function updatePlaceholder() {
+            const dir = document.getElementById('direction').value;
+            const input = document.getElementById('inputContent');
+            input.placeholder = `例如：${examples[dir]}`;
+        }
+
+        async function startTranslate() {
+            const direction = document.getElementById('direction').value;
+            const content = document.getElementById('inputContent').value;
+            const outputDiv = document.getElementById('outputContent');
+            const btnText = document.getElementById('btnText');
+            const loading = document.getElementById('loading');
+
+            if (!content.trim()) {
+                alert("请输入内容");
+                return;
+            }
+
+            // UI Reset
+            outputDiv.innerHTML = '<p class="text-gray-400 animate-pulse">AI 正在思考中...</p>';
+            btnText.innerText = "翻译中...";
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ direction, content })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let resultText = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    // 这里的逻辑取决于后端返回的是增量还是全量。
+                    // 假设 Dashscope SDK 返回的是累积全量文本（不同模型行为不一，此处按全量覆盖处理最保险）
+                    // 如果后端返回的是"Hello" -> "Hello World"，我们取最后一个完整的包最好。
+                    // 简化处理：在这个Demo中，我们假设chunk是一段文本，我们把它拼起来，
+                    // 但由于Dashscope流式特性，最好的方式其实是只保留最新的长文本。
+
+                    // 修正逻辑：针对简单Demo，我们直接追加可能会重复。
+                    // 实际上，为了效果，我们清空并重写，或者后端只发delta。
+                    // 这里采用简单的覆盖策略（视觉上会有闪烁，但在2小时挑战中可接受）。
+                    resultText = chunk;
+
+                    // 更好的流式体验是后端计算diff，但在有限时间内，
+                    // 我们让后端每次yield当前完整的生成结果，前端直接覆盖innerHTML。
+                    outputDiv.innerHTML = marked.parse(resultText);
+                }
+
+            } catch (error) {
+                outputDiv.innerHTML = `<p class="text-red-500">发生错误: ${error.message}</p>`;
+            } finally {
+                btnText.innerText = "开始翻译";
+                loading.classList.add('hidden');
+            }
+        }
+
+        // Init
+        updatePlaceholder();
+    </script>
+</body>
+</html>
+
