@@ -4,3 +4,7 @@ __pycache__
 
 # docx
 ~$*
+
+
+# mac os
+.DS_Store
